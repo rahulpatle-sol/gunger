@@ -1,4 +1,7 @@
 'use client'
+import { useRef, useMemo } from 'react'
+import { motion } from 'framer-motion'
+import { Flame, Activity, Info } from 'lucide-react'
 
 interface Day { date: string; count: number }
 
@@ -9,6 +12,7 @@ interface Props {
 }
 
 export default function ActivityGrid({ grid, streak, total }: Props) {
+  // Logic: Determine intensity levels for the heat map
   const getLevel = (count: number) => {
     if (count === 0) return 0
     if (count === 1) return 1
@@ -17,71 +21,151 @@ export default function ActivityGrid({ grid, streak, total }: Props) {
     return 4
   }
 
-  // Group into weeks
-  const weeks: Day[][] = []
-  for (let i = 0; i < grid.length; i += 7) {
-    weeks.push(grid.slice(i, i + 7))
+  // Memoize grid processing so it doesn't re-run on every render
+  const processedData = useMemo(() => {
+    const weeks: Day[][] = []
+    for (let i = 0; i < grid.length; i += 7) {
+      weeks.push(grid.slice(i, i + 7))
+    }
+
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    const monthLabels: { label: string; col: number }[] = []
+    let lastMonth = -1
+    
+    weeks.forEach((week, wi) => {
+      const date = new Date(week[0]?.date)
+      const month = date.getMonth()
+      if (month !== lastMonth) {
+        monthLabels.push({ label: months[month], col: wi })
+        lastMonth = month
+      }
+    })
+
+    return { weeks, monthLabels }
+  }, [grid])
+
+  // Framer Motion Variants
+  const containerVars = {
+    initial: { opacity: 0 },
+    animate: { 
+      opacity: 1,
+      transition: { staggerChildren: 0.005, delayChildren: 0.2 } 
+    }
   }
 
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-  const monthLabels: { label: string; col: number }[] = []
-  let lastMonth = -1
-  weeks.forEach((week, wi) => {
-    const month = new Date(week[0]?.date).getMonth()
-    if (month !== lastMonth) {
-      monthLabels.push({ label: months[month], col: wi })
-      lastMonth = month
-    }
-  })
+  const cellVars = {
+    initial: { scale: 0, opacity: 0 },
+    animate: { scale: 1, opacity: 1 }
+  }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs text-paper/40 font-mono uppercase tracking-wider">
-          Submission Activity
-        </span>
-        <div className="flex gap-4 text-xs font-mono">
-          <span className="text-paper/40">{total} total</span>
-          <span className="text-gun-red">🔥 {streak} day streak</span>
+    <div className="w-full bg-zinc-950/50 border border-zinc-800 p-6 rounded-2xl backdrop-blur-sm relative overflow-hidden group">
+      {/* Background Decor */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 blur-[50px] rounded-full -mr-16 -mt-16 pointer-events-none" />
+
+      {/* Header Info */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-zinc-900 rounded-lg border border-zinc-800">
+            <Activity className="w-4 h-4 text-zinc-400" />
+          </div>
+          <div>
+            <h3 className="text-xs font-mono text-zinc-500 uppercase tracking-widest">Neural Submission Feed</h3>
+            <p className="text-sm text-zinc-300 font-semibold">{total} Global Transmissions</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-6">
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] font-mono text-zinc-600 uppercase">Current Streak</span>
+            <div className="flex items-center gap-2 text-red-500">
+              <Flame className="w-4 h-4 fill-red-500/20" />
+              <span className="font-bold tabular-nums">{streak} DAYS</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Month labels */}
-      <div className="flex gap-1 mb-1" style={{ paddingLeft: '0' }}>
-        {monthLabels.map(({ label, col }) => (
-          <div
-            key={`${label}-${col}`}
-            className="text-paper/30 text-xs font-mono"
-            style={{ marginLeft: col === 0 ? 0 : `${(col - (monthLabels[monthLabels.indexOf(monthLabels.find(m => m.col === col)!)] ? monthLabels[monthLabels.indexOf(monthLabels.find(m => m.col === col)!) - 1]?.col || 0 : 0)) * 14}px` }}
-          >
-            {label}
-          </div>
-        ))}
+      {/* Grid Container */}
+      <div className="relative">
+        {/* Month Labels */}
+        <div className="flex text-[10px] font-mono text-zinc-600 mb-2 select-none h-4">
+          {processedData.monthLabels.map((m, i) => (
+            <div 
+              key={i} 
+              className="absolute transition-colors hover:text-zinc-400"
+              style={{ left: `${m.col * 14}px` }}
+            >
+              {m.label}
+            </div>
+          ))}
+        </div>
+
+        {/* The Actual Grid */}
+        <motion.div 
+          variants={containerVars}
+          initial="initial"
+          animate="animate"
+          className="flex gap-[3px] overflow-x-auto pb-4 no-scrollbar cursor-crosshair"
+        >
+          {processedData.weeks.map((week, wi) => (
+            <div key={wi} className="flex flex-col gap-[3px] shrink-0">
+              {week.map((day, di) => {
+                const level = getLevel(day.count)
+                return (
+                  <motion.div
+                    key={`${wi}-${di}`}
+                    variants={cellVars}
+                    whileHover={{ scale: 1.3, zIndex: 10 }}
+                    title={`${day.date}: ${day.count} tasks`}
+                    className={`
+                      w-[11px] h-[11px] rounded-[2px] transition-colors duration-300
+                      ${level === 0 && 'bg-zinc-900 hover:bg-zinc-800'}
+                      ${level === 1 && 'bg-red-950/40 border border-red-900/20'}
+                      ${level === 2 && 'bg-red-900/60 shadow-[0_0_8px_rgba(153,27,27,0.2)]'}
+                      ${level === 3 && 'bg-red-700 shadow-[0_0_10px_rgba(185,28,28,0.3)]'}
+                      ${level === 4 && 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]'}
+                    `}
+                  />
+                )
+              })}
+            </div>
+          ))}
+        </motion.div>
       </div>
 
-      {/* Grid */}
-      <div className="flex gap-1 overflow-x-auto pb-1">
-        {weeks.map((week, wi) => (
-          <div key={wi} className="flex flex-col gap-1">
-            {week.map((day, di) => (
-              <div
-                key={di}
-                className={`activity-cell activity-${getLevel(day.count)}`}
-                title={`${day.date}: ${day.count} submission${day.count !== 1 ? 's' : ''}`}
+      {/* Footer / Legend */}
+      <div className="flex flex-col sm:flex-row items-center justify-between mt-4 gap-4 pt-4 border-t border-zinc-900/50">
+        <div className="flex items-center gap-2 text-[10px] text-zinc-600 font-mono italic">
+          <Info className="w-3 h-3" />
+          <span>Real-time data synchronization enabled</span>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-tighter">Latency</span>
+          <div className="flex gap-[3px]">
+            {[0, 1, 2, 3, 4].map(l => (
+              <div 
+                key={l} 
+                className={`w-[10px] h-[10px] rounded-[2px] 
+                  ${l === 0 && 'bg-zinc-900'}
+                  ${l === 1 && 'bg-red-950/40'}
+                  ${l === 2 && 'bg-red-900/60'}
+                  ${l === 3 && 'bg-red-700'}
+                  ${l === 4 && 'bg-red-500'}
+                `} 
               />
             ))}
           </div>
-        ))}
+          <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-tighter">High Load</span>
+        </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex items-center gap-1 mt-2 justify-end">
-        <span className="text-xs text-paper/30 font-mono">Less</span>
-        {[0, 1, 2, 3, 4].map(l => (
-          <div key={l} className={`activity-cell activity-${l}`} />
-        ))}
-        <span className="text-xs text-paper/30 font-mono">More</span>
-      </div>
+      {/* CSS for hiding scrollbar but keeping functionality */}
+      <style jsx global>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
     </div>
   )
 }

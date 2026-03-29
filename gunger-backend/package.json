@@ -3,10 +3,14 @@
   "version": "1.0.0",
   "description": "Gunger - Coding Platform Backend",
   "main": "index.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "jest --runInBand --forceExit"
+    "test": "jest --runInBand --forceExit",
+    "build": "echo 'No build needed'"
   },
   "dependencies": {
     "axios": "^1.6.0",
