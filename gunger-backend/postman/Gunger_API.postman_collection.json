@@ -1,0 +1,402 @@
+{
+  "info": {
+    "name": "Gunger API",
+    "_postman_id": "gunger-api-v1",
+    "description": "Complete Gunger Platform API Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:5000" },
+    { "key": "student_token", "value": "" },
+    { "key": "teacher_token", "value": "" },
+    { "key": "batch_id", "value": "" },
+    { "key": "question_id", "value": "" },
+    { "key": "contest_id", "value": "" },
+    { "key": "submission_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "Register Student",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"username\": \"rahul_student\", \"email\": \"rahul@test.com\", \"password\": \"Pass123!\", \"role\": \"student\" }"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('Status 201', () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set('student_token', pm.response.json().token);"
+            ]}
+          }]
+        },
+        {
+          "name": "Register Teacher",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"username\": \"sir_teacher\", \"email\": \"teacher@test.com\", \"password\": \"Pass123!\", \"role\": \"teacher\" }"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('Status 201', () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set('teacher_token', pm.response.json().token);"
+            ]}
+          }]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"username\": \"rahul_student\", \"password\": \"Pass123!\" }"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Has token', () => pm.expect(pm.response.json()).to.have.property('token'));"
+            ]}
+          }]
+        },
+        {
+          "name": "Get Me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{student_token}}" }],
+            "url": "{{base_url}}/api/auth/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏥 Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": { "method": "GET", "url": "{{base_url}}/health" },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('Has status field', () => pm.expect(pm.response.json()).to.have.property('status'));",
+              "pm.test('Has database field', () => pm.expect(pm.response.json()).to.have.property('database'));"
+            ]}
+          }]
+        },
+        {
+          "name": "Status Page",
+          "request": { "method": "GET", "url": "{{base_url}}/status" }
+        },
+        {
+          "name": "Ping (Wake Server)",
+          "request": { "method": "GET", "url": "{{base_url}}/ping" }
+        }
+      ]
+    },
+    {
+      "name": "🏫 Batches",
+      "item": [
+        {
+          "name": "Create Batch (Teacher)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{teacher_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/api/batches",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"name\": \"CSE Batch A\", \"subject\": \"Data Structures\" }"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('Status 201', () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set('batch_id', pm.response.json().id);"
+            ]}
+          }]
+        },
+        {
+          "name": "Get My Batches",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{teacher_token}}" }],
+            "url": "{{base_url}}/api/batches"
+          }
+        },
+        {
+          "name": "Join Batch (Student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{student_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/api/batches/join",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"join_code\": \"PASTE_CODE_HERE\" }"
+            }
+          }
+        },
+        {
+          "name": "Get Batch Members",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{teacher_token}}" }],
+            "url": "{{base_url}}/api/batches/{{batch_id}}/members"
+          }
+        },
+        {
+          "name": "Delete Batch",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{teacher_token}}" }],
+            "url": "{{base_url}}/api/batches/{{batch_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📝 Questions",
+      "item": [
+        {
+          "name": "Create Question (Teacher)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{teacher_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/api/questions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Sum Two Numbers\",\n  \"description\": \"Given two integers a and b on a single line, print their sum.\",\n  \"difficulty\": \"easy\",\n  \"allowed_languages\": [\"javascript\", \"python\", \"php\"],\n  \"xp_reward\": 20,\n  \"test_cases\": [\n    { \"input\": \"1 2\", \"expected_output\": \"3\", \"is_hidden\": false },\n    { \"input\": \"100 200\", \"expected_output\": \"300\", \"is_hidden\": true },\n    { \"input\": \"-5 5\", \"expected_output\": \"0\", \"is_hidden\": true }\n  ]\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('Status 201', () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set('question_id', pm.response.json().id);"
+            ]}
+          }]
+        },
+        {
+          "name": "List Questions",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{student_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/questions?difficulty=easy&page=1&limit=10",
+              "query": [
+                { "key": "difficulty", "value": "easy" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single Question",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{student_token}}" }],
+            "url": "{{base_url}}/api/questions/{{question_id}}"
+          }
+        },
+        {
+          "name": "Get AI Hint",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{student_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/api/questions/{{question_id}}/hint",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"code\": \"let a = 1;\", \"language\": \"javascript\" }"
+            }
+          }
+        },
+        {
+          "name": "Delete Question",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{teacher_token}}" }],
+            "url": "{{base_url}}/api/questions/{{question_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "⚡ Submissions",
+      "item": [
+        {
+          "name": "Submit Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{student_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/api/submissions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question_id\": \"{{question_id}}\",\n  \"language\": \"javascript\",\n  \"code\": \"const [a,b] = require('fs').readFileSync('/dev/stdin','utf8').trim().split(' ').map(Number); console.log(a+b);\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('Has submission', () => pm.expect(pm.response.json()).to.have.property('submission'));",
+              "pm.collectionVariables.set('submission_id', pm.response.json().submission?.id);"
+            ]}
+          }]
+        },
+        {
+          "name": "My Submissions",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{student_token}}" }],
+            "url": "{{base_url}}/api/submissions"
+          }
+        },
+        {
+          "name": "Submission Detail",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{student_token}}" }],
+            "url": "{{base_url}}/api/submissions/{{submission_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏆 Contests",
+      "item": [
+        {
+          "name": "Create Contest",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{teacher_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/api/contests",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Weekly Challenge #1\",\n  \"description\": \"First weekly coding contest\",\n  \"batch_id\": \"{{batch_id}}\",\n  \"start_time\": \"2026-04-01T09:00:00Z\",\n  \"end_time\": \"2026-04-01T11:00:00Z\",\n  \"is_public\": false,\n  \"questions\": [{ \"question_id\": \"{{question_id}}\", \"marks\": 25 }]\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('Status 201', () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set('contest_id', pm.response.json().id);"
+            ]}
+          }]
+        },
+        {
+          "name": "List Contests",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{student_token}}" }],
+            "url": "{{base_url}}/api/contests"
+          }
+        },
+        {
+          "name": "Get Contest",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{student_token}}" }],
+            "url": "{{base_url}}/api/contests/{{contest_id}}"
+          }
+        },
+        {
+          "name": "Contest Leaderboard",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{student_token}}" }],
+            "url": "{{base_url}}/api/contests/{{contest_id}}/leaderboard"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 Leaderboard & Stats",
+      "item": [
+        {
+          "name": "Global Leaderboard",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{student_token}}" }],
+            "url": "{{base_url}}/api/leaderboard"
+          }
+        },
+        {
+          "name": "Batch Leaderboard",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{teacher_token}}" }],
+            "url": "{{base_url}}/api/leaderboard/batch/{{batch_id}}"
+          }
+        },
+        {
+          "name": "My Activity Grid",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{student_token}}" }],
+            "url": "{{base_url}}/api/activity"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📥 Export",
+      "item": [
+        {
+          "name": "Export Batch Excel",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{teacher_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/export/batch/{{batch_id}}?format=excel",
+              "query": [{ "key": "format", "value": "excel" }]
+            }
+          }
+        },
+        {
+          "name": "Export Batch PDF",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{teacher_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/export/batch/{{batch_id}}?format=pdf",
+              "query": [{ "key": "format", "value": "pdf" }]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

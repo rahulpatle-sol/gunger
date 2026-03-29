@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <rect width="32" height="32" rx="4" fill="#0D0B08"/>
+  <!-- Gun body -->
+  <path d="M4 14h16v5H4z" fill="#F4ECD8"/>
+  <!-- Barrel -->
+  <path d="M20 15h6v3h-6z" fill="#F4ECD8"/>
+  <!-- Handle -->
+  <path d="M8 19h5v7H8z" fill="#F4ECD8"/>
+  <!-- Trigger guard -->
+  <path d="M10 19 Q10 22 13 22" stroke="#C41E3A" stroke-width="1.5" fill="none"/>
+  <!-- Muzzle flash hint -->
+  <circle cx="27" cy="16.5" r="1.5" fill="#C41E3A" opacity="0.9"/>
+</svg>
