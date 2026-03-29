@@ -1,11 +1,11 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/shared/Navbar'
 import { useAuthStore } from '@/lib/store'
 import { questionApi } from '@/lib/api'
 import toast from 'react-hot-toast'
-import { Plus, Trash2, Loader2, Eye, EyeOff } from 'lucide-react'
+import { Plus, Trash2, Loader2, Eye, EyeOff, ShieldAlert } from 'lucide-react'
 
 const LANGS = ['javascript', 'python', 'php', 'rust', 'sql', 'java', 'cpp']
 
@@ -14,17 +14,31 @@ interface TestCase { input: string; expected_output: string; is_hidden: boolean 
 export default function NewQuestionPage() {
   const { user } = useAuthStore()
   const router = useRouter()
+  const [isChecking, setIsChecking] = useState(true)
 
   const [form, setForm] = useState({
     title: '', description: '', difficulty: 'medium',
     allowed_languages: ['javascript', 'python'],
     xp_reward: 20, is_public: false,
   })
+  
   const [testCases, setTestCases] = useState<TestCase[]>([
     { input: '', expected_output: '', is_hidden: false },
     { input: '', expected_output: '', is_hidden: true },
   ])
   const [saving, setSaving] = useState(false)
+
+  // FIX: Protect Route inside useEffect to avoid 'location' errors during build
+  useEffect(() => {
+    if (user !== undefined) {
+      if (!user || user.role === 'student') {
+        toast.error("Unauthorized Access")
+        router.push('/dashboard')
+      } else {
+        setIsChecking(false)
+      }
+    }
+  }, [user, router])
 
   const toggleLang = (l: string) => {
     setForm(f => ({
@@ -52,193 +66,220 @@ export default function NewQuestionPage() {
       await questionApi.create({ ...form, test_cases: validTC })
       toast.success('Question created! 🎯')
       router.push('/teacher')
-    } catch (err: unknown) {
-      toast.error((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to create')
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to create')
     } finally { setSaving(false) }
   }
 
-  if (!user || user.role === 'student') {
-    router.push('/dashboard')
-    return null
+  // Loading state to prevent layout shift/flash
+  if (isChecking) {
+    return (
+      <div className="min-h-screen bg-ink flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-10 h-10 text-gun-red animate-spin" />
+          <p className="font-mono text-xs text-paper/40 tracking-widest uppercase animate-pulse">
+            Authenticating Secure Line...
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <>
+    <div className="min-h-screen bg-ink pb-20">
       <Navbar />
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        <div className="mb-6 animate-fade-in">
-          <h1 className="font-headline font-black text-3xl text-paper">File New Dispatch</h1>
-          <p className="text-xs text-paper/40 font-mono mt-1">Create a question with hidden test cases</p>
+      <div className="max-w-3xl mx-auto px-4 py-12">
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-gun-red/10 border border-gun-red/20 rounded text-gun-red">
+              <ShieldAlert size={20} />
+            </div>
+            <h1 className="font-headline font-black text-4xl text-paper tracking-tighter uppercase italic">
+              Dispatch <span className="text-gun-red">New Task</span>
+            </h1>
+          </div>
+          <p className="text-[10px] text-paper/30 font-mono tracking-[0.2em] uppercase ml-12">
+            Protocol: Encrypted Judging // Hidden Metrics Enabled
+          </p>
         </div>
 
-        <form onSubmit={submit} className="space-y-6 animate-slide-up" data-delay="1">
-
-          {/* Basic info */}
-          <div className="news-card p-5 space-y-4">
-            <h2 className="font-headline font-bold text-paper border-b border-paper/10 pb-2">Question Details</h2>
-
-            <div>
-              <label className="block text-xs font-mono text-paper/40 uppercase tracking-wider mb-2">Title *</label>
-              <input
-                value={form.title}
-                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                placeholder="Two Sum, Reverse String, etc."
-                className="w-full bg-ink border border-paper/20 text-paper px-4 py-3 font-mono text-sm focus:outline-none focus:border-gun-red transition-colors placeholder:text-paper/20"
-              />
+        <form onSubmit={submit} className="space-y-8">
+          {/* Question Details */}
+          <div className="bg-zinc-900/50 border border-paper/10 rounded-2xl p-8 backdrop-blur-sm shadow-2xl">
+            <div className="flex items-center gap-2 mb-8 border-b border-paper/5 pb-4">
+              <span className="w-2 h-2 rounded-full bg-gun-red animate-pulse" />
+              <h2 className="font-headline font-bold text-lg text-paper uppercase tracking-widest">Metadata</h2>
             </div>
 
-            <div>
-              <label className="block text-xs font-mono text-paper/40 uppercase tracking-wider mb-2">Description *</label>
-              <textarea
-                value={form.description}
-                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                placeholder="Given an array of integers... Explain input/output format clearly."
-                rows={5}
-                className="w-full bg-ink border border-paper/20 text-paper px-4 py-3 font-mono text-sm focus:outline-none focus:border-gun-red transition-colors placeholder:text-paper/20 resize-y"
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-6">
               <div>
-                <label className="block text-xs font-mono text-paper/40 uppercase tracking-wider mb-2">Difficulty</label>
-                <select
-                  value={form.difficulty}
-                  onChange={e => setForm(f => ({ ...f, difficulty: e.target.value }))}
-                  className="w-full bg-ink border border-paper/20 text-paper px-3 py-2 font-mono text-sm focus:outline-none focus:border-gun-red"
-                >
-                  <option value="easy">Easy</option>
-                  <option value="medium">Medium</option>
-                  <option value="hard">Hard</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-mono text-paper/40 uppercase tracking-wider mb-2">XP Reward</label>
+                <label className="block text-[10px] font-mono text-paper/40 uppercase tracking-[0.2em] mb-3">Target Title</label>
                 <input
-                  type="number"
-                  min={5} max={200}
-                  value={form.xp_reward}
-                  onChange={e => setForm(f => ({ ...f, xp_reward: parseInt(e.target.value) || 20 }))}
-                  className="w-full bg-ink border border-paper/20 text-paper px-3 py-2 font-mono text-sm focus:outline-none focus:border-gun-red"
+                  value={form.title}
+                  onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                  placeholder="e.g. Memory Leak Detection"
+                  className="w-full bg-ink/50 border border-paper/10 text-paper px-4 py-4 font-mono text-sm focus:outline-none focus:border-gun-red/50 transition-all placeholder:text-paper/10 rounded-xl"
                 />
               </div>
-              <div className="flex items-end pb-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form.is_public}
-                    onChange={e => setForm(f => ({ ...f, is_public: e.target.checked }))}
-                    className="accent-gun-red"
-                  />
-                  <span className="text-xs font-mono text-paper/60">Public</span>
-                </label>
-              </div>
-            </div>
 
-            {/* Languages */}
-            <div>
-              <label className="block text-xs font-mono text-paper/40 uppercase tracking-wider mb-2">Allowed Languages</label>
-              <div className="flex flex-wrap gap-2">
-                {LANGS.map(l => (
-                  <button
-                    key={l}
-                    type="button"
-                    onClick={() => toggleLang(l)}
-                    className={`px-3 py-1.5 text-xs font-mono transition-colors ${
-                      form.allowed_languages.includes(l)
-                        ? 'bg-paper text-ink font-bold'
-                        : 'border border-paper/20 text-paper/40 hover:text-paper'
-                    }`}
+              <div>
+                <label className="block text-[10px] font-mono text-paper/40 uppercase tracking-[0.2em] mb-3">Objective Description</label>
+                <textarea
+                  value={form.description}
+                  onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                  placeholder="Define the challenge parameters..."
+                  rows={6}
+                  className="w-full bg-ink/50 border border-paper/10 text-paper px-4 py-4 font-mono text-sm focus:outline-none focus:border-gun-red/50 transition-all placeholder:text-paper/10 rounded-xl resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-mono text-paper/40 uppercase">Threat Level</label>
+                  <select
+                    value={form.difficulty}
+                    onChange={e => setForm(f => ({ ...f, difficulty: e.target.value }))}
+                    className="w-full bg-zinc-950 border border-paper/10 text-paper px-4 py-3 font-mono text-xs focus:outline-none focus:border-gun-red rounded-lg appearance-none cursor-pointer"
                   >
-                    {l}
-                  </button>
-                ))}
+                    <option value="easy">Low (Easy)</option>
+                    <option value="medium">Elevated (Medium)</option>
+                    <option value="hard">Critical (Hard)</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-mono text-paper/40 uppercase">XP Yield</label>
+                  <input
+                    type="number"
+                    value={form.xp_reward}
+                    onChange={e => setForm(f => ({ ...f, xp_reward: parseInt(e.target.value) || 20 }))}
+                    className="w-full bg-zinc-950 border border-paper/10 text-paper px-4 py-3 font-mono text-xs focus:outline-none focus:border-gun-red rounded-lg"
+                  />
+                </div>
+                <div className="flex items-center justify-center pt-6">
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={form.is_public}
+                      onChange={e => setForm(f => ({ ...f, is_public: e.target.checked }))}
+                      className="w-4 h-4 rounded border-paper/20 bg-ink text-gun-red focus:ring-gun-red accent-gun-red"
+                    />
+                    <span className="text-[10px] font-mono text-paper/40 uppercase group-hover:text-paper transition-colors">Public Access</span>
+                  </label>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Test Cases */}
-          <div className="news-card p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-paper/10 pb-2">
+          {/* Languages Section */}
+          <div className="bg-zinc-900/50 border border-paper/10 rounded-2xl p-8 backdrop-blur-sm">
+            <label className="block text-[10px] font-mono text-paper/40 uppercase tracking-[0.2em] mb-6">Execution Engines</label>
+            <div className="flex flex-wrap gap-3">
+              {LANGS.map(l => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => toggleLang(l)}
+                  className={`px-5 py-2.5 text-[10px] font-mono uppercase tracking-widest transition-all rounded-lg border ${
+                    form.allowed_languages.includes(l)
+                      ? 'bg-gun-red border-gun-red text-white shadow-[0_0_15px_rgba(220,38,38,0.2)]'
+                      : 'bg-ink/40 border-paper/10 text-paper/30 hover:border-paper/30 hover:text-paper'
+                  }`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Test Cases Section */}
+          <div className="bg-zinc-900/50 border border-paper/10 rounded-2xl p-8 backdrop-blur-sm space-y-6">
+            <div className="flex items-center justify-between border-b border-paper/5 pb-6">
               <div>
-                <h2 className="font-headline font-bold text-paper">Test Cases</h2>
-                <p className="text-xs text-paper/30 font-mono mt-0.5">Hidden cases not shown to students</p>
+                <h2 className="font-headline font-bold text-lg text-paper uppercase tracking-widest">Test Matrices</h2>
+                <p className="text-[10px] text-paper/20 font-mono mt-1">Hidden cases prevent algorithmic hardcoding.</p>
               </div>
               <button
                 type="button"
                 onClick={addTC}
-                className="flex items-center gap-1.5 text-xs font-mono text-gun-red hover:underline"
+                className="flex items-center gap-2 text-[10px] font-mono font-black text-gun-red bg-gun-red/5 px-4 py-2 rounded-full border border-gun-red/20 hover:bg-gun-red hover:text-white transition-all uppercase tracking-tighter"
               >
-                <Plus size={12} /> Add Case
+                <Plus size={14} /> Add Vector
               </button>
             </div>
 
-            {testCases.map((tc, i) => (
-              <div key={i} className="border border-paper/10 p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono text-paper/40">Test Case {i + 1}</span>
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => updateTC(i, 'is_hidden', !tc.is_hidden)}
-                      className={`flex items-center gap-1 text-xs font-mono transition-colors ${
-                        tc.is_hidden ? 'text-gun-red' : 'text-green-400'
-                      }`}
-                    >
-                      {tc.is_hidden ? <EyeOff size={12} /> : <Eye size={12} />}
-                      {tc.is_hidden ? 'Hidden' : 'Visible'}
-                    </button>
-                    {testCases.length > 1 && (
-                      <button type="button" onClick={() => removeTC(i)} className="text-paper/30 hover:text-gun-red transition-colors">
-                        <Trash2 size={12} />
+            <div className="space-y-4">
+              {testCases.map((tc, i) => (
+                <div key={i} className="group bg-ink/30 border border-paper/5 rounded-xl p-6 transition-all hover:border-paper/20">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-[10px] font-mono text-paper/20 uppercase tracking-widest">Vector #{i + 1}</span>
+                    <div className="flex items-center gap-4">
+                      <button
+                        type="button"
+                        onClick={() => updateTC(i, 'is_hidden', !tc.is_hidden)}
+                        className={`flex items-center gap-2 text-[10px] font-mono font-bold transition-all uppercase ${
+                          tc.is_hidden ? 'text-gun-red' : 'text-emerald-500'
+                        }`}
+                      >
+                        {tc.is_hidden ? <EyeOff size={14} /> : <Eye size={14} />}
+                        {tc.is_hidden ? 'Hidden' : 'Visible'}
                       </button>
-                    )}
+                      {testCases.length > 1 && (
+                        <button type="button" onClick={() => removeTC(i)} className="text-paper/10 hover:text-gun-red transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-mono text-paper/20 uppercase">Input Stream</label>
+                      <textarea
+                        value={tc.input}
+                        onChange={e => updateTC(i, 'input', e.target.value)}
+                        placeholder="e.g. [1, 5, 10]"
+                        rows={2}
+                        className="w-full bg-zinc-950 border border-paper/10 text-paper px-4 py-3 font-mono text-xs focus:outline-none focus:border-gun-red transition-all rounded-lg resize-none"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-mono text-paper/20 uppercase">Expected Resolve</label>
+                      <textarea
+                        value={tc.expected_output}
+                        onChange={e => updateTC(i, 'expected_output', e.target.value)}
+                        placeholder="e.g. 16"
+                        rows={2}
+                        className="w-full bg-zinc-950 border border-paper/10 text-paper px-4 py-3 font-mono text-xs focus:outline-none focus:border-gun-red transition-all rounded-lg resize-none"
+                      />
+                    </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-mono text-paper/30 mb-1 block">Input</label>
-                    <textarea
-                      value={tc.input}
-                      onChange={e => updateTC(i, 'input', e.target.value)}
-                      placeholder="1 2"
-                      rows={3}
-                      className="w-full bg-ink border border-paper/15 text-paper px-3 py-2 font-mono text-xs focus:outline-none focus:border-gun-red transition-colors placeholder:text-paper/15 resize-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-mono text-paper/30 mb-1 block">Expected Output</label>
-                    <textarea
-                      value={tc.expected_output}
-                      onChange={e => updateTC(i, 'expected_output', e.target.value)}
-                      placeholder="3"
-                      rows={3}
-                      className="w-full bg-ink border border-paper/15 text-paper px-3 py-2 font-mono text-xs focus:outline-none focus:border-gun-red transition-colors placeholder:text-paper/15 resize-none"
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
-          {/* Submit */}
-          <div className="flex gap-3">
+          {/* Action Footer */}
+          <div className="flex flex-col md:flex-row gap-4 pt-6">
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 bg-gun-red text-paper py-3 font-headline font-bold text-lg hover:bg-gun-red-dark transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+              className="flex-[2] bg-gun-red text-white py-5 rounded-xl font-headline font-black text-xl hover:bg-red-500 transition-all disabled:opacity-50 flex items-center justify-center gap-3 shadow-[0_10px_30px_rgba(220,38,38,0.2)]"
             >
-              {saving ? <><Loader2 size={18} className="animate-spin" /> Publishing...</> : '🔫 Publish Question'}
+              {saving ? (
+                <><Loader2 size={24} className="animate-spin" /> Finalizing...</>
+              ) : (
+                'Deploy Protocol'
+              )}
             </button>
             <button
               type="button"
               onClick={() => router.push('/teacher')}
-              className="px-6 py-3 border border-paper/20 text-paper/60 hover:text-paper font-mono text-sm transition-colors"
+              className="flex-1 px-8 py-5 border border-paper/10 text-paper/40 hover:text-paper hover:bg-zinc-900 font-mono text-xs uppercase tracking-[0.2em] rounded-xl transition-all"
             >
-              Cancel
+              Abort
             </button>
-          </div>
+          </div> 
         </form>
       </div>
-    </>
+    </div>
   )
 }
