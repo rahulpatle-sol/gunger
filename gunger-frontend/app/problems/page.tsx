@@ -6,22 +6,31 @@ import Navbar from '@/components/shared/Navbar'
 import { useAuthStore } from '@/lib/store'
 import { questionApi } from '@/lib/api'
 import { difficultyColor } from '@/lib/utils'
-import { Loader2, Search, Filter } from 'lucide-react'
+import { Loader2, Search, Filter, Terminal, Zap, ChevronRight } from 'lucide-react'
 
 const LANGS = ['all', 'javascript', 'python', 'php', 'rust', 'sql', 'java']
 const DIFFS = ['all', 'easy', 'medium', 'hard']
 
+interface Question {
+  id: string
+  title: string
+  difficulty: string
+  allowed_languages: string[]
+  xp_reward: number
+  teacher_name: string
+}
+
 export default function ProblemsPage() {
   const { user } = useAuthStore()
   const router = useRouter()
-  const [questions, setQuestions] = useState<unknown[]>([])
+  const [questions, setQuestions] = useState<Question[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [lang, setLang] = useState('all')
   const [diff, setDiff] = useState('all')
 
   useEffect(() => {
-    if (!user) { router.push('/login'); return }
+    if (user === null) { router.push('/login'); return }
     load()
   }, [user, lang, diff])
 
@@ -33,54 +42,63 @@ export default function ProblemsPage() {
       if (diff !== 'all') params.difficulty = diff
       const { data } = await questionApi.list(params)
       setQuestions(data)
-    } catch { /* silent */ }
-    finally { setLoading(false) }
+    } catch { 
+      setQuestions([]) 
+    } finally { 
+      setLoading(false) 
+    }
   }
 
-  type Question = { id: string; title: string; difficulty: string; allowed_languages: string[]; xp_reward: number; teacher_name: string }
-  const filtered = (questions as Question[]).filter(q =>
+  const filtered = questions.filter(q =>
     q.title.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
-    <>
+    <div className="min-h-screen bg-ink pb-20">
       <Navbar />
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      
+      <div className="max-w-6xl mx-auto px-4 py-8">
 
-        {/* Header */}
-        <div className="mb-6 animate-fade-in">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="h-px flex-1 bg-paper/10" />
-            <h1 className="font-headline font-black text-3xl text-paper tracking-wide">PROBLEM ARCHIVE</h1>
-            <div className="h-px flex-1 bg-paper/10" />
+        {/* --- Header Section --- */}
+        <div className="mb-10 text-center space-y-2 animate-in fade-in slide-in-from-top-4 duration-700">
+          <div className="flex items-center justify-center gap-4">
+            <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-gun-red" />
+            <h1 className="font-headline font-black text-4xl md:text-5xl text-paper tracking-tighter italic uppercase">
+              Problem <span className="text-gun-red">Archive</span>
+            </h1>
+            <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-gun-red" />
           </div>
-          <p className="text-center text-xs text-paper/40 font-mono">
-            {filtered.length} dispatches available — choose your weapon
+          <p className="text-[10px] text-paper/30 font-mono tracking-[0.3em] uppercase">
+            {filtered.length} active dispatches // Select your objective
           </p>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-3 mb-6 p-4 border border-paper/10 animate-slide-up" data-delay="1">
-          {/* Search */}
-          <div className="flex-1 min-w-48 relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-paper/30" />
+        {/* --- Controls / Filters --- */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8">
+          
+          {/* Search Bar */}
+          <div className="lg:col-span-2 relative group">
+            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+              <Search size={16} className="text-paper/20 group-focus-within:text-gun-red transition-colors" />
+            </div>
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search problems..."
-              className="w-full pl-9 pr-3 py-2 bg-ink border border-paper/15 text-paper text-sm font-mono focus:outline-none focus:border-gun-red transition-colors placeholder:text-paper/20"
+              placeholder="Search by mission title..."
+              className="w-full pl-12 pr-4 py-4 bg-zinc-900/50 border border-paper/10 text-paper font-mono text-sm rounded-xl focus:outline-none focus:border-gun-red/50 transition-all placeholder:text-paper/10"
             />
           </div>
 
-          {/* Difficulty */}
-          <div className="flex items-center gap-1">
-            <Filter size={12} className="text-paper/30" />
+          {/* Difficulty Toggle */}
+          <div className="flex bg-zinc-900/50 border border-paper/10 p-1 rounded-xl overflow-x-auto scrollbar-hide">
             {DIFFS.map(d => (
               <button
                 key={d}
                 onClick={() => setDiff(d)}
-                className={`px-3 py-1.5 text-xs font-mono uppercase transition-colors ${
-                  diff === d ? 'bg-gun-red text-paper' : 'text-paper/40 hover:text-paper border border-paper/10'
+                className={`flex-1 px-4 py-3 text-[10px] font-mono font-bold uppercase tracking-widest transition-all rounded-lg whitespace-nowrap ${
+                  diff === d 
+                    ? 'bg-gun-red text-white shadow-lg shadow-gun-red/20' 
+                    : 'text-paper/30 hover:text-paper hover:bg-white/5'
                 }`}
               >
                 {d}
@@ -88,70 +106,105 @@ export default function ProblemsPage() {
             ))}
           </div>
 
-          {/* Language */}
-          <div className="flex flex-wrap gap-1">
-            {LANGS.map(l => (
-              <button
-                key={l}
-                onClick={() => setLang(l)}
-                className={`px-2 py-1 text-xs font-mono transition-colors ${
-                  lang === l ? 'bg-paper/10 text-paper border border-paper/30' : 'text-paper/30 hover:text-paper'
-                }`}
-              >
-                {l}
-              </button>
-            ))}
+          {/* Language Scroll (Mobile Friendly) */}
+          <div className="flex bg-zinc-900/50 border border-paper/10 p-1 rounded-xl overflow-x-auto scrollbar-hide">
+             <div className="flex gap-1 w-full">
+                {LANGS.slice(0, 4).map(l => (
+                  <button
+                    key={l}
+                    onClick={() => setLang(l)}
+                    className={`flex-1 px-3 py-3 text-[10px] font-mono transition-all rounded-lg uppercase tracking-tighter ${
+                      lang === l 
+                        ? 'bg-paper text-ink font-black' 
+                        : 'text-paper/20 hover:text-paper'
+                    }`}
+                  >
+                    {l.slice(0, 3)}
+                  </button>
+                ))}
+             </div>
           </div>
         </div>
 
-        {/* Problems table */}
+        {/* --- Problem List --- */}
         {loading ? (
-          <div className="flex justify-center py-16"><Loader2 className="animate-spin text-paper/40" size={24} /></div>
+          <div className="flex flex-col items-center justify-center py-32 gap-4">
+            <Loader2 className="animate-spin text-gun-red" size={40} />
+            <span className="font-mono text-[10px] text-paper/20 tracking-widest uppercase">Fetching encrypted data...</span>
+          </div>
         ) : (
-          <div className="border border-paper/10 animate-slide-up" data-delay="2">
-            {/* Table header */}
-            <div className="grid grid-cols-12 gap-4 px-4 py-2 border-b border-paper/10 bg-paper/2">
-              <div className="col-span-1 text-xs font-mono text-paper/30 uppercase">#</div>
-              <div className="col-span-5 text-xs font-mono text-paper/30 uppercase">Title</div>
-              <div className="col-span-2 text-xs font-mono text-paper/30 uppercase">Difficulty</div>
-              <div className="col-span-2 text-xs font-mono text-paper/30 uppercase">Languages</div>
-              <div className="col-span-2 text-xs font-mono text-paper/30 uppercase text-right">XP</div>
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Desktop Header */}
+            <div className="hidden md:grid grid-cols-12 gap-4 px-8 py-4 bg-zinc-950/50 border border-paper/5 rounded-t-xl mb-2 text-[10px] font-mono text-paper/20 uppercase tracking-[0.2em]">
+              <div className="col-span-1">#</div>
+              <div className="col-span-5">Mission Objective</div>
+              <div className="col-span-2">Threat Level</div>
+              <div className="col-span-2">Engines</div>
+              <div className="col-span-2 text-right">Yield</div>
             </div>
 
             {filtered.length === 0 ? (
-              <div className="text-center py-12 text-paper/30 font-mono text-sm">
-                No problems match your filters
+              <div className="text-center py-24 bg-zinc-900/20 border border-dashed border-paper/10 rounded-2xl">
+                <Terminal size={40} className="mx-auto text-paper/10 mb-4" />
+                <p className="font-mono text-sm text-paper/30">Zero matches found in the current sector.</p>
               </div>
             ) : (
               filtered.map((q, i) => (
                 <Link
-                  key={(q as Question).id}
-                  href={`/problems/${(q as Question).id}`}
-                  className="grid grid-cols-12 gap-4 px-4 py-3 border-b border-paper/5 hover:bg-paper/3 transition-colors group"
+                  key={q.id}
+                  href={`/problems/${q.id}`}
+                  className="group relative block bg-zinc-900/40 border border-paper/10 hover:border-gun-red/30 rounded-xl transition-all hover:translate-x-1"
                 >
-                  <div className="col-span-1 text-xs text-paper/20 font-mono self-center">{i + 1}</div>
-                  <div className="col-span-5 self-center">
-                    <span className="text-sm text-paper group-hover:text-gun-red transition-colors font-headline">
-                      {(q as Question).title}
-                    </span>
-                    <div className="text-xs text-paper/25 font-mono mt-0.5">by {(q as Question).teacher_name}</div>
-                  </div>
-                  <div className="col-span-2 self-center">
-                    <span className={`text-xs font-mono uppercase ${difficultyColor((q as Question).difficulty)}`}>
-                      {(q as Question).difficulty}
-                    </span>
-                  </div>
-                  <div className="col-span-2 self-center">
-                    <div className="flex flex-wrap gap-1">
-                      {(q as Question).allowed_languages.slice(0, 2).map(l => (
-                        <span key={l} className="text-xs text-paper/30 font-mono border border-paper/10 px-1">
-                          {l.slice(0, 2)}
+                  <div className="absolute top-0 left-0 w-1 h-full bg-gun-red opacity-0 group-hover:opacity-100 transition-opacity rounded-l-xl" />
+                  
+                  {/* Grid / Content Wrapper */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 px-6 md:px-8 py-6 items-center">
+                    
+                    {/* Index & Title */}
+                    <div className="col-span-1 hidden md:block font-mono text-xs text-paper/10">
+                      {(i + 1).toString().padStart(2, '0')}
+                    </div>
+                    
+                    <div className="col-span-1 md:col-span-5">
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg md:text-xl font-headline font-bold text-paper group-hover:text-gun-red transition-colors uppercase tracking-tight italic">
+                          {q.title}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-paper/10 group-hover:bg-gun-red transition-colors" />
+                        <span className="text-[10px] text-paper/20 font-mono uppercase tracking-widest italic group-hover:text-paper/40 transition-colors">
+                          Dispatch by {q.teacher_name}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Difficulty (Mobile & Desktop) */}
+                    <div className="col-span-1 md:col-span-2 flex items-center">
+                      <span className={`text-[10px] font-mono font-bold px-3 py-1 rounded-full border ${difficultyColor(q.difficulty)} uppercase tracking-widest`}>
+                        {q.difficulty}
+                      </span>
+                    </div>
+
+                    {/* Languages Tags */}
+                    <div className="col-span-1 md:col-span-2 flex flex-wrap gap-2">
+                      {q.allowed_languages.slice(0, 3).map(l => (
+                        <span key={l} className="text-[9px] font-mono text-paper/30 border border-paper/10 px-2 py-0.5 rounded uppercase tracking-tighter bg-ink/50">
+                          {l}
                         </span>
                       ))}
                     </div>
-                  </div>
-                  <div className="col-span-2 self-center text-right">
-                    <span className="text-xs text-gun-red font-mono">+{(q as Question).xp_reward}</span>
+
+                    {/* XP & Arrow */}
+                    <div className="col-span-1 md:col-span-2 flex items-center justify-between md:justify-end gap-4 border-t md:border-t-0 border-paper/5 pt-4 md:pt-0">
+                      <div className="flex items-center gap-1.5">
+                        <Zap size={12} className="text-gun-red fill-gun-red/20" />
+                        <span className="text-sm font-mono font-black text-gun-red group-hover:scale-110 transition-transform">
+                          +{q.xp_reward} <span className="text-[10px] opacity-50 font-normal ml-0.5">XP</span>
+                        </span>
+                      </div>
+                      <ChevronRight size={16} className="text-paper/10 group-hover:text-gun-red group-hover:translate-x-1 transition-all" />
+                    </div>
                   </div>
                 </Link>
               ))
@@ -159,6 +212,6 @@ export default function ProblemsPage() {
           </div>
         )}
       </div>
-    </>
+    </div>
   )
 }
